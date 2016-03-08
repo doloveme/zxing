@@ -18,13 +18,15 @@ package com.google.zxing.oned;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.ChecksumException;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.FormatException;
 import com.google.zxing.NotFoundException;
 import com.google.zxing.Result;
 import com.google.zxing.ResultPoint;
 import com.google.zxing.common.BitArray;
 
-import java.util.Hashtable;
+import java.util.Arrays;
+import java.util.Map;
 
 /**
  * <p>Decodes Code 39 barcodes. This does not support "Full ASCII Code 39" yet.</p>
@@ -54,14 +56,15 @@ public final class Code39Reader extends OneDReader {
 
   private final boolean usingCheckDigit;
   private final boolean extendedMode;
+  private final StringBuilder decodeRowResult;
+  private final int[] counters;
 
   /**
    * Creates a reader that assumes all encoded data is data, and does not treat the final
    * character as a check digit. It will not decoded "extended Code 39" sequences.
    */
   public Code39Reader() {
-    usingCheckDigit = false;
-    extendedMode = false;
+    this(false);
   }
 
   /**
@@ -72,8 +75,7 @@ public final class Code39Reader extends OneDReader {
    * data, and verify that the checksum passes.
    */
   public Code39Reader(boolean usingCheckDigit) {
-    this.usingCheckDigit = usingCheckDigit;
-    this.extendedMode = false;
+    this(usingCheckDigit, false);
   }
 
   /**
@@ -89,52 +91,52 @@ public final class Code39Reader extends OneDReader {
   public Code39Reader(boolean usingCheckDigit, boolean extendedMode) {
     this.usingCheckDigit = usingCheckDigit;
     this.extendedMode = extendedMode;
+    decodeRowResult = new StringBuilder(20);
+    counters = new int[9];
   }
 
-  public Result decodeRow(int rowNumber, BitArray row, Hashtable hints)
+  @Override
+  public Result decodeRow(int rowNumber, BitArray row, Map<DecodeHintType,?> hints)
       throws NotFoundException, ChecksumException, FormatException {
 
-    int[] start = findAsteriskPattern(row);
-    int nextStart = start[1];
+    int[] theCounters = counters;
+    Arrays.fill(theCounters, 0);
+    StringBuilder result = decodeRowResult;
+    result.setLength(0);
+
+    int[] start = findAsteriskPattern(row, theCounters);
+    // Read off white space    
+    int nextStart = row.getNextSet(start[1]);
     int end = row.getSize();
 
-    // Read off white space
-    while (nextStart < end && !row.get(nextStart)) {
-      nextStart++;
-    }
-
-    StringBuffer result = new StringBuffer(20);
-    int[] counters = new int[9];
     char decodedChar;
     int lastStart;
     do {
-      recordPattern(row, nextStart, counters);
-      int pattern = toNarrowWidePattern(counters);
+      recordPattern(row, nextStart, theCounters);
+      int pattern = toNarrowWidePattern(theCounters);
       if (pattern < 0) {
         throw NotFoundException.getNotFoundInstance();
       }
       decodedChar = patternToChar(pattern);
       result.append(decodedChar);
       lastStart = nextStart;
-      for (int i = 0; i < counters.length; i++) {
-        nextStart += counters[i];
+      for (int counter : theCounters) {
+        nextStart += counter;
       }
       // Read off white space
-      while (nextStart < end && !row.get(nextStart)) {
-        nextStart++;
-      }
+      nextStart = row.getNextSet(nextStart);
     } while (decodedChar != '*');
-    result.deleteCharAt(result.length() - 1); // remove asterisk
+    result.setLength(result.length() - 1); // remove asterisk
 
     // Look for whitespace after pattern:
     int lastPatternSize = 0;
-    for (int i = 0; i < counters.length; i++) {
-      lastPatternSize += counters[i];
+    for (int counter : theCounters) {
+      lastPatternSize += counter;
     }
     int whiteSpaceAfterEnd = nextStart - lastStart - lastPatternSize;
     // If 50% of last pattern size, following last pattern, is not whitespace, fail
     // (but if it's whitespace to the very end of the image, that's OK)
-    if (nextStart != end && whiteSpaceAfterEnd / 2 < lastPatternSize) {
+    if (nextStart != end && (whiteSpaceAfterEnd >> 1) < lastPatternSize) {
       throw NotFoundException.getNotFoundInstance();
     }
 
@@ -142,16 +144,16 @@ public final class Code39Reader extends OneDReader {
       int max = result.length() - 1;
       int total = 0;
       for (int i = 0; i < max; i++) {
-        total += ALPHABET_STRING.indexOf(result.charAt(i));
+        total += ALPHABET_STRING.indexOf(decodeRowResult.charAt(i));
       }
       if (result.charAt(max) != ALPHABET[total % 43]) {
         throw ChecksumException.getChecksumInstance();
       }
-      result.deleteCharAt(max);
+      result.setLength(max);
     }
 
     if (result.length() == 0) {
-      // Almost surely a false positive
+      // false positive
       throw NotFoundException.getNotFoundInstance();
     }
 
@@ -163,7 +165,7 @@ public final class Code39Reader extends OneDReader {
     }
 
     float left = (float) (start[1] + start[0]) / 2.0f;
-    float right = (float) (nextStart + lastStart) / 2.0f;
+    float right = lastStart + lastPatternSize / 2.0f;
     return new Result(
         resultString,
         null,
@@ -174,38 +176,27 @@ public final class Code39Reader extends OneDReader {
 
   }
 
-  private static int[] findAsteriskPattern(BitArray row) throws NotFoundException {
+  private static int[] findAsteriskPattern(BitArray row, int[] counters) throws NotFoundException {
     int width = row.getSize();
-    int rowOffset = 0;
-    while (rowOffset < width) {
-      if (row.get(rowOffset)) {
-        break;
-      }
-      rowOffset++;
-    }
+    int rowOffset = row.getNextSet(0);
 
     int counterPosition = 0;
-    int[] counters = new int[9];
     int patternStart = rowOffset;
     boolean isWhite = false;
     int patternLength = counters.length;
 
     for (int i = rowOffset; i < width; i++) {
-      boolean pixel = row.get(i);
-      if (pixel ^ isWhite) {
+      if (row.get(i) ^ isWhite) {
         counters[counterPosition]++;
       } else {
         if (counterPosition == patternLength - 1) {
-          if (toNarrowWidePattern(counters) == ASTERISK_ENCODING) {
-            // Look for whitespace before start pattern, >= 50% of width of start pattern
-            if (row.isRange(Math.max(0, patternStart - (i - patternStart) / 2), patternStart, false)) {
-              return new int[]{patternStart, i};
-            }
+          // Look for whitespace before start pattern, >= 50% of width of start pattern
+          if (toNarrowWidePattern(counters) == ASTERISK_ENCODING &&
+              row.isRange(Math.max(0, patternStart - ((i - patternStart) >> 1)), patternStart, false)) {
+            return new int[]{patternStart, i};
           }
           patternStart += counters[0] + counters[1];
-          for (int y = 2; y < patternLength; y++) {
-            counters[y - 2] = counters[y];
-          }
+          System.arraycopy(counters, 2, counters, 0, patternLength - 2);
           counters[patternLength - 2] = 0;
           counters[patternLength - 1] = 0;
           counterPosition--;
@@ -227,8 +218,7 @@ public final class Code39Reader extends OneDReader {
     int wideCounters;
     do {
       int minCounter = Integer.MAX_VALUE;
-      for (int i = 0; i < numCounters; i++) {
-        int counter = counters[i];
+      for (int counter : counters) {
         if (counter < minCounter && counter > maxNarrowCounter) {
           minCounter = counter;
         }
@@ -239,7 +229,7 @@ public final class Code39Reader extends OneDReader {
       int pattern = 0;
       for (int i = 0; i < numCounters; i++) {
         int counter = counters[i];
-        if (counters[i] > maxNarrowCounter) {
+        if (counter > maxNarrowCounter) {
           pattern |= 1 << (numCounters - 1 - i);
           wideCounters++;
           totalWideCountersWidth += counter;
@@ -251,7 +241,7 @@ public final class Code39Reader extends OneDReader {
         // counter is more than 1.5 times the average:
         for (int i = 0; i < numCounters && wideCounters > 0; i++) {
           int counter = counters[i];
-          if (counters[i] > maxNarrowCounter) {
+          if (counter > maxNarrowCounter) {
             wideCounters--;
             // totalWideCountersWidth = 3 * average, so this checks if counter >= 3/2 * average
             if ((counter << 1) >= totalWideCountersWidth) {
@@ -274,9 +264,9 @@ public final class Code39Reader extends OneDReader {
     throw NotFoundException.getNotFoundInstance();
   }
 
-  private static String decodeExtended(StringBuffer encoded) throws FormatException {
+  private static String decodeExtended(CharSequence encoded) throws FormatException {
     int length = encoded.length();
-    StringBuffer decoded = new StringBuffer(length);
+    StringBuilder decoded = new StringBuilder(length);
     for (int i = 0; i < length; i++) {
       char c = encoded.charAt(i);
       if (c == '+' || c == '$' || c == '%' || c == '/') {

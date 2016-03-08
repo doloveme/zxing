@@ -26,6 +26,7 @@
 
 package com.google.zxing.oned.rss.expanded.decoders;
 
+import com.google.zxing.FormatException;
 import com.google.zxing.NotFoundException;
 import com.google.zxing.common.BitArray;
 
@@ -35,20 +36,29 @@ import com.google.zxing.common.BitArray;
  */
 public abstract class AbstractExpandedDecoder {
 
-  protected final BitArray information;
-  protected final GeneralAppIdDecoder generalDecoder;
+  private final BitArray information;
+  private final GeneralAppIdDecoder generalDecoder;
 
   AbstractExpandedDecoder(BitArray information){
-    this.information    = information;
+    this.information = information;
     this.generalDecoder = new GeneralAppIdDecoder(information);
   }
 
-  public abstract String parseInformation() throws NotFoundException;
+  protected final BitArray getInformation() {
+    return information;
+  }
+
+  protected final GeneralAppIdDecoder getGeneralDecoder() {
+    return generalDecoder;
+  }
+
+  public abstract String parseInformation() throws NotFoundException, FormatException;
 
   public static AbstractExpandedDecoder createDecoder(BitArray information){
     if (information.get(1)) {
       return new AI01AndOtherAIs(information);
-    } else if (!information.get(2)) {
+    }
+    if (!information.get(2)) {
       return new AnyAIDecoder(information);
     }
 
@@ -79,7 +89,5 @@ public abstract class AbstractExpandedDecoder {
 
     throw new IllegalStateException("unknown decoder: " + information);
   }
-
-
 
 }

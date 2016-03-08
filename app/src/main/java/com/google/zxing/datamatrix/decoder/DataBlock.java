@@ -40,7 +40,7 @@ final class DataBlock {
    *
    * @param rawCodewords bytes as read directly from the Data Matrix Code
    * @param version version of the Data Matrix Code
-   * @return {@link DataBlock}s containing original bytes, "de-interleaved" from representation in the
+   * @return DataBlocks containing original bytes, "de-interleaved" from representation in the
    *         Data Matrix Code
    */
   static DataBlock[] getDataBlocks(byte[] rawCodewords,
@@ -51,15 +51,14 @@ final class DataBlock {
     // First count the total number of data blocks
     int totalBlocks = 0;
     Version.ECB[] ecBlockArray = ecBlocks.getECBlocks();
-    for (int i = 0; i < ecBlockArray.length; i++) {
-      totalBlocks += ecBlockArray[i].getCount();
+    for (Version.ECB ecBlock : ecBlockArray) {
+       totalBlocks += ecBlock.getCount();
     }
 
     // Now establish DataBlocks of the appropriate size and number of data codewords
     DataBlock[] result = new DataBlock[totalBlocks];
     int numResultBlocks = 0;
-    for (int j = 0; j < ecBlockArray.length; j++) {
-      Version.ECB ecBlock = ecBlockArray[j];
+    for (Version.ECB ecBlock : ecBlockArray) {
       for (int i = 0; i < ecBlock.getCount(); i++) {
         int numDataCodewords = ecBlock.getDataCodewords();
         int numBlockCodewords = ecBlocks.getECCodewords() + numDataCodewords;
@@ -95,7 +94,7 @@ final class DataBlock {
     int max = result[0].codewords.length;
     for (int i = longerBlocksNumDataCodewords; i < max; i++) {
       for (int j = 0; j < numResultBlocks; j++) {
-        int iOffset = (specialVersion && j > 7) ? i - 1 : i;
+        int iOffset = specialVersion && j > 7 ? i - 1 : i;
         result[j].codewords[iOffset] = rawCodewords[rawCodewordsOffset++];
       }
     }

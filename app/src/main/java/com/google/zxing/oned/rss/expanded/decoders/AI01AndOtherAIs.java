@@ -26,6 +26,7 @@
 
 package com.google.zxing.oned.rss.expanded.decoders;
 
+import com.google.zxing.FormatException;
 import com.google.zxing.NotFoundException;
 import com.google.zxing.common.BitArray;
 
@@ -41,16 +42,17 @@ final class AI01AndOtherAIs extends AI01decoder {
     super(information);
   }
 
-  public String parseInformation() throws NotFoundException {
-    StringBuffer buff = new StringBuffer();
+  @Override
+  public String parseInformation() throws NotFoundException, FormatException {
+    StringBuilder buff = new StringBuilder();
 
     buff.append("(01)");
     int initialGtinPosition = buff.length();
-    int firstGtinDigit = this.generalDecoder.extractNumericValueFromBitArray(HEADER_SIZE, 4);
+    int firstGtinDigit = this.getGeneralDecoder().extractNumericValueFromBitArray(HEADER_SIZE, 4);
     buff.append(firstGtinDigit);
 
     this.encodeCompressedGtinWithoutAI(buff, HEADER_SIZE + 4, initialGtinPosition);
 
-    return this.generalDecoder.decodeAllCodes(buff, HEADER_SIZE + 44);
+    return this.getGeneralDecoder().decodeAllCodes(buff, HEADER_SIZE + 44);
   }
 }

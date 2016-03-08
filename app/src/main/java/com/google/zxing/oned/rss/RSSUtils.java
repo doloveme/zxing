@@ -21,12 +21,13 @@ public final class RSSUtils {
 
   private RSSUtils() {}
 
+  /*
   static int[] getRSSwidths(int val, int n, int elements, int maxWidth, boolean noNarrow) {
     int[] widths = new int[elements];
     int bar;
     int narrowMask = 0;
     for (bar = 0; bar < elements - 1; bar++) {
-      narrowMask |= (1 << bar);
+      narrowMask |= 1 << bar;
       int elmWidth = 1;
       int subVal;
       while (true) {
@@ -60,18 +61,19 @@ public final class RSSUtils {
     widths[bar] = n;
     return widths;
   }
+   */
 
   public static int getRSSvalue(int[] widths, int maxWidth, boolean noNarrow) {
     int elements = widths.length;
     int n = 0;
-    for (int i = 0; i < elements; i++) {
-      n += widths[i];
+    for (int width : widths) {
+      n += width;
     }
     int val = 0;
     int narrowMask = 0;
     for (int bar = 0; bar < elements - 1; bar++) {
       int elmWidth;
-      for (elmWidth = 1, narrowMask |= (1 << bar);
+      for (elmWidth = 1, narrowMask |= 1 << bar;
            elmWidth < widths[bar];
            elmWidth++, narrowMask &= ~(1 << bar)) {
         int subVal = combins(n - elmWidth - 1, elements - bar - 2);
@@ -95,11 +97,12 @@ public final class RSSUtils {
       }
       n -= elmWidth;
     }
-    return (val);
+    return val;
   }
 
-  static int combins(int n, int r) {
-    int maxDenom, minDenom;
+  private static int combins(int n, int r) {
+    int maxDenom;
+    int minDenom;
     if (n - r > r) {
       minDenom = r;
       maxDenom = n - r;
@@ -120,9 +123,10 @@ public final class RSSUtils {
       val /= j;
       j++;
     }
-    return (val);
+    return val;
   }
 
+  /*
   static int[] elements(int[] eDist, int N, int K) {
     int[] widths = new int[eDist.length + 2];
     int twoK = K << 1;
@@ -150,6 +154,6 @@ public final class RSSUtils {
     }
     return widths;
   }
-
+   */
 
 }

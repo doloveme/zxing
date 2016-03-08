@@ -25,36 +25,25 @@ import com.google.zxing.oned.UPCEReader;
  * 
  * @author dswitkin@google.com (Daniel Switkin)
  */
-final class ProductResultParser extends ResultParser {
-
-  private ProductResultParser() {
-  }
+public final class ProductResultParser extends ResultParser {
 
   // Treat all UPC and EAN variants as UPCs, in the sense that they are all product barcodes.
-  public static ProductParsedResult parse(Result result) {
+  @Override
+  public ProductParsedResult parse(Result result) {
     BarcodeFormat format = result.getBarcodeFormat();
-    if (!(BarcodeFormat.UPC_A.equals(format) || BarcodeFormat.UPC_E.equals(format) ||
-          BarcodeFormat.EAN_8.equals(format) || BarcodeFormat.EAN_13.equals(format))) {
+    if (!(format == BarcodeFormat.UPC_A || format == BarcodeFormat.UPC_E ||
+          format == BarcodeFormat.EAN_8 || format == BarcodeFormat.EAN_13)) {
       return null;
     }
-    // Really neither of these should happen:
-    String rawText = result.getText();
-    if (rawText == null) {
+    String rawText = getMassagedText(result);
+    if (!isStringOfDigits(rawText, rawText.length())) {
       return null;
-    }
-
-    int length = rawText.length();
-    for (int x = 0; x < length; x++) {
-      char c = rawText.charAt(x);
-      if (c < '0' || c > '9') {
-        return null;
-      }
     }
     // Not actually checking the checksum again here    
 
     String normalizedProductID;
     // Expand UPC-E for purposes of searching
-    if (BarcodeFormat.UPC_E.equals(format)) {
+    if (format == BarcodeFormat.UPC_E && rawText.length() == 8) {
       normalizedProductID = UPCEReader.convertUPCEtoUPCA(rawText);
     } else {
       normalizedProductID = rawText;

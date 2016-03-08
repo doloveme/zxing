@@ -12,8 +12,8 @@ import android.graphics.*;
 import android.widget.Button;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.MultiFormatReader;
+import com.google.zxing.PlanarYUVLuminanceSource;
 import com.google.zxing.Result;
-import com.google.zxing.Android.PlanarYUVLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import android.app.Activity;
 import android.hardware.Camera;
@@ -99,7 +99,11 @@ public class testCamera extends Activity {
             sfhCamera.AutoFocusAndPreviewCallback();
         }
     }
-
+    private void test(){
+        CameraManager manager = new CameraManager();
+        com.google.zxing.client.camera.
+        CameraManager.
+    }
     /**
      * 自动对焦后输出图片
      */

@@ -53,8 +53,7 @@ public final class Version {
     int total = 0;
     int ecCodewords = ecBlocks.getECCodewords();
     ECB[] ecbArray = ecBlocks.getECBlocks();
-    for (int i = 0; i < ecbArray.length; i++) {
-      ECB ecBlock = ecbArray[i];
+    for (ECB ecBlock : ecbArray) {
       total += ecBlock.getCount() * (ecBlock.getDataCodewords() + ecCodewords);
     }
     this.totalCodewords = total;
@@ -93,20 +92,15 @@ public final class Version {
    *
    * @param numRows Number of rows in modules
    * @param numColumns Number of columns in modules
-   * @return {@link Version} for a Data Matrix Code of those dimensions
+   * @return Version for a Data Matrix Code of those dimensions
    * @throws FormatException if dimensions do correspond to a valid Data Matrix size
    */
   public static Version getVersionForDimensions(int numRows, int numColumns) throws FormatException {
     if ((numRows & 0x01) != 0 || (numColumns & 0x01) != 0) {
       throw FormatException.getFormatInstance();
     }
-    
-    // TODO(bbrown): This is doing a linear search through the array of versions.
-    // If we interleave the rectangular versions with the square versions we could
-    // do a binary search.
-    int numVersions = VERSIONS.length;
-    for (int i = 0; i < numVersions; ++i){
-      Version version = VERSIONS[i];
+
+    for (Version version : VERSIONS) {
       if (version.symbolSizeRows == numRows && version.symbolSizeColumns == numColumns) {
         return version;
       }
@@ -167,6 +161,7 @@ public final class Version {
     }
   }
 
+  @Override
   public String toString() {
     return String.valueOf(versionNumber);
   }
@@ -232,7 +227,7 @@ public final class Version {
             new ECBlocks(14, new ECB(1, 16))),
         new Version(28, 12, 36, 10, 16,
             new ECBlocks(18, new ECB(1, 22))),
-        new Version(29, 16, 36, 10, 16,
+        new Version(29, 16, 36, 14, 16,
             new ECBlocks(24, new ECB(1, 32))),
         new Version(30, 16, 48, 14, 22,
             new ECBlocks(28, new ECB(1, 49)))

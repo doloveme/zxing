@@ -26,7 +26,8 @@
 
 package com.google.zxing.client.result;
 
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
@@ -37,46 +38,37 @@ import com.google.zxing.Result;
  * @author Antonio Manuel Benjumea Conde, Servinform, S.A.
  * @author Agustín Delgado, Servinform, S.A.
  */
-final class ExpandedProductResultParser extends ResultParser {
+public final class ExpandedProductResultParser extends ResultParser {
 
-  private ExpandedProductResultParser() {
-  }
-
-  // Treat all RSS EXPANDED, in the sense that they are all
-  // product barcodes with complementary data.
-  public static ExpandedProductParsedResult parse(Result result) {
+  @Override
+  public ExpandedProductParsedResult parse(Result result) {
     BarcodeFormat format = result.getBarcodeFormat();
-    if (!(BarcodeFormat.RSS_EXPANDED.equals(format))) {
+    if (format != BarcodeFormat.RSS_EXPANDED) {
       // ExtendedProductParsedResult NOT created. Not a RSS Expanded barcode
       return null;
     }
-    // Really neither of these should happen:
-    String rawText = result.getText();
-    if (rawText == null) {
-      // ExtendedProductParsedResult NOT created. Input text is NULL
-      return null;
-    }
+    String rawText = getMassagedText(result);
 
-    String productID = "-";
-    String sscc = "-";
-    String lotNumber = "-";
-    String productionDate = "-";
-    String packagingDate = "-";
-    String bestBeforeDate = "-";
-    String expirationDate = "-";
-    String weight = "-";
-    String weightType = "-";
-    String weightIncrement = "-";
-    String price = "-";
-    String priceIncrement = "-";
-    String priceCurrency = "-";
-    Hashtable uncommonAIs = new Hashtable();
+    String productID = null;
+    String sscc = null;
+    String lotNumber = null;
+    String productionDate = null;
+    String packagingDate = null;
+    String bestBeforeDate = null;
+    String expirationDate = null;
+    String weight = null;
+    String weightType = null;
+    String weightIncrement = null;
+    String price = null;
+    String priceIncrement = null;
+    String priceCurrency = null;
+    Map<String,String> uncommonAIs = new HashMap<>();
 
     int i = 0;
 
     while (i < rawText.length()) {
       String ai = findAIvalue(i, rawText);
-      if ("ERROR".equals(ai)) {
+      if (ai == null) {
         // Error. Code doesn't match with RSS expanded pattern
         // ExtendedProductParsedResult NOT created. Not match with RSS Expanded pattern
         return null;
@@ -85,99 +77,126 @@ final class ExpandedProductResultParser extends ResultParser {
       String value = findValue(i, rawText);
       i += value.length();
 
-      if ("00".equals(ai)) {
-        sscc = value;
-      } else if ("01".equals(ai)) {
-        productID = value;
-      } else if ("10".equals(ai)) {
-        lotNumber = value;
-      } else if ("11".equals(ai)) {
-        productionDate = value;
-      } else if ("13".equals(ai)) {
-        packagingDate = value;
-      } else if ("15".equals(ai)) {
-        bestBeforeDate = value;
-      } else if ("17".equals(ai)) {
-        expirationDate = value;
-      } else if ("3100".equals(ai) || "3101".equals(ai)
-          || "3102".equals(ai) || "3103".equals(ai)
-          || "3104".equals(ai) || "3105".equals(ai)
-          || "3106".equals(ai) || "3107".equals(ai)
-          || "3108".equals(ai) || "3109".equals(ai)) {
-        weight = value;
-        weightType = ExpandedProductParsedResult.KILOGRAM;
-        weightIncrement = ai.substring(3);
-      } else if ("3200".equals(ai) || "3201".equals(ai)
-          || "3202".equals(ai) || "3203".equals(ai)
-          || "3204".equals(ai) || "3205".equals(ai)
-          || "3206".equals(ai) || "3207".equals(ai)
-          || "3208".equals(ai) || "3209".equals(ai)) {
-        weight = value;
-        weightType = ExpandedProductParsedResult.POUND;
-        weightIncrement = ai.substring(3);
-      } else if ("3920".equals(ai) || "3921".equals(ai)
-          || "3922".equals(ai) || "3923".equals(ai)) {
-        price = value;
-        priceIncrement = ai.substring(3);
-      } else if ("3930".equals(ai) || "3931".equals(ai)
-          || "3932".equals(ai) || "3933".equals(ai)) {
-        if (value.length() < 4) {
-          // The value must have more of 3 symbols (3 for currency and
-          // 1 at least for the price)
-          // ExtendedProductParsedResult NOT created. Not match with RSS Expanded pattern
-          return null;
-        }
-        price = value.substring(3);
-        priceCurrency = value.substring(0, 3);
-        priceIncrement = ai.substring(3);
-      } else {
-        // No match with common AIs
-        uncommonAIs.put(ai, value);
+      switch (ai) {
+        case "00":
+          sscc = value;
+          break;
+        case "01":
+          productID = value;
+          break;
+        case "10":
+          lotNumber = value;
+          break;
+        case "11":
+          productionDate = value;
+          break;
+        case "13":
+          packagingDate = value;
+          break;
+        case "15":
+          bestBeforeDate = value;
+          break;
+        case "17":
+          expirationDate = value;
+          break;
+        case "3100":
+        case "3101":
+        case "3102":
+        case "3103":
+        case "3104":
+        case "3105":
+        case "3106":
+        case "3107":
+        case "3108":
+        case "3109":
+          weight = value;
+          weightType = ExpandedProductParsedResult.KILOGRAM;
+          weightIncrement = ai.substring(3);
+          break;
+        case "3200":
+        case "3201":
+        case "3202":
+        case "3203":
+        case "3204":
+        case "3205":
+        case "3206":
+        case "3207":
+        case "3208":
+        case "3209":
+          weight = value;
+          weightType = ExpandedProductParsedResult.POUND;
+          weightIncrement = ai.substring(3);
+          break;
+        case "3920":
+        case "3921":
+        case "3922":
+        case "3923":
+          price = value;
+          priceIncrement = ai.substring(3);
+          break;
+        case "3930":
+        case "3931":
+        case "3932":
+        case "3933":
+          if (value.length() < 4) {
+            // The value must have more of 3 symbols (3 for currency and
+            // 1 at least for the price)
+            // ExtendedProductParsedResult NOT created. Not match with RSS Expanded pattern
+            return null;
+          }
+          price = value.substring(3);
+          priceCurrency = value.substring(0, 3);
+          priceIncrement = ai.substring(3);
+          break;
+        default:
+          // No match with common AIs
+          uncommonAIs.put(ai, value);
+          break;
       }
     }
 
-    return new ExpandedProductParsedResult(productID, sscc, lotNumber,
-        productionDate, packagingDate, bestBeforeDate, expirationDate,
-        weight, weightType, weightIncrement, price, priceIncrement,
-        priceCurrency, uncommonAIs);
+    return new ExpandedProductParsedResult(rawText,
+                                           productID,
+                                           sscc,
+                                           lotNumber,
+                                           productionDate,
+                                           packagingDate,
+                                           bestBeforeDate,
+                                           expirationDate,
+                                           weight,
+                                           weightType,
+                                           weightIncrement,
+                                           price,
+                                           priceIncrement,
+                                           priceCurrency,
+                                           uncommonAIs);
   }
 
   private static String findAIvalue(int i, String rawText) {
-    StringBuffer buf = new StringBuffer();
     char c = rawText.charAt(i);
     // First character must be a open parenthesis.If not, ERROR
     if (c != '(') {
-      return "ERROR";
+      return null;
     }
 
-    String rawTextAux = rawText.substring(i + 1);
+    CharSequence rawTextAux = rawText.substring(i + 1);
 
+    StringBuilder buf = new StringBuilder();
     for (int index = 0; index < rawTextAux.length(); index++) {
       char currentChar = rawTextAux.charAt(index);
-      switch (currentChar){
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-          buf.append(currentChar);
-          break;
-        case ')':
-          return buf.toString();
-        default:
-          return "ERROR";
+      if (currentChar == ')') {
+        return buf.toString();
+      } else if (currentChar >= '0' && currentChar <= '9') {
+        buf.append(currentChar);
+      } else {
+        return null;
       }
     }
     return buf.toString();
   }
 
   private static String findValue(int i, String rawText) {
-    StringBuffer buf = new StringBuffer();
+    StringBuilder buf = new StringBuilder();
     String rawTextAux = rawText.substring(i);
 
     for (int index = 0; index < rawTextAux.length(); index++) {
@@ -185,7 +204,7 @@ final class ExpandedProductResultParser extends ResultParser {
       if (c == '(') {
         // We look for a new AI. If it doesn't exist (ERROR), we coninue
         // with the iteration
-        if ("ERROR".equals(findAIvalue(index, rawTextAux))) {
+        if (findAIvalue(index, rawTextAux) == null) {
           buf.append('(');
         } else {
           break;

@@ -41,7 +41,7 @@ final class DataBlock {
    * @param rawCodewords bytes as read directly from the QR Code
    * @param version version of the QR Code
    * @param ecLevel error-correction level of the QR Code
-   * @return {@link DataBlock}s containing original bytes, "de-interleaved" from representation in the
+   * @return DataBlocks containing original bytes, "de-interleaved" from representation in the
    *         QR Code
    */
   static DataBlock[] getDataBlocks(byte[] rawCodewords,
@@ -59,15 +59,14 @@ final class DataBlock {
     // First count the total number of data blocks
     int totalBlocks = 0;
     Version.ECB[] ecBlockArray = ecBlocks.getECBlocks();
-    for (int i = 0; i < ecBlockArray.length; i++) {
-      totalBlocks += ecBlockArray[i].getCount();
+    for (Version.ECB ecBlock : ecBlockArray) {
+      totalBlocks += ecBlock.getCount();
     }
 
     // Now establish DataBlocks of the appropriate size and number of data codewords
     DataBlock[] result = new DataBlock[totalBlocks];
     int numResultBlocks = 0;
-    for (int j = 0; j < ecBlockArray.length; j++) {
-      Version.ECB ecBlock = ecBlockArray[j];
+    for (Version.ECB ecBlock : ecBlockArray) {
       for (int i = 0; i < ecBlock.getCount(); i++) {
         int numDataCodewords = ecBlock.getDataCodewords();
         int numBlockCodewords = ecBlocks.getECCodewordsPerBlock() + numDataCodewords;

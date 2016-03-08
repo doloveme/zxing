@@ -24,8 +24,9 @@ import com.google.zxing.ReaderException;
 import com.google.zxing.Result;
 import com.google.zxing.common.BitArray;
 
-import java.util.Hashtable;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * <p>A reader that can read all available UPC/EAN formats. If a caller wants to try to
@@ -36,43 +37,46 @@ import java.util.Vector;
  */
 public final class MultiFormatUPCEANReader extends OneDReader {
 
-  private final Vector readers;
+  private final UPCEANReader[] readers;
 
-  public MultiFormatUPCEANReader(Hashtable hints) {
-    Vector possibleFormats = hints == null ? null :
-        (Vector) hints.get(DecodeHintType.POSSIBLE_FORMATS);
-    readers = new Vector();
+  public MultiFormatUPCEANReader(Map<DecodeHintType,?> hints) {
+    @SuppressWarnings("unchecked")
+    Collection<BarcodeFormat> possibleFormats = hints == null ? null :
+        (Collection<BarcodeFormat>) hints.get(DecodeHintType.POSSIBLE_FORMATS);
+    Collection<UPCEANReader> readers = new ArrayList<>();
     if (possibleFormats != null) {
       if (possibleFormats.contains(BarcodeFormat.EAN_13)) {
-        readers.addElement(new EAN13Reader());
+        readers.add(new EAN13Reader());
       } else if (possibleFormats.contains(BarcodeFormat.UPC_A)) {
-        readers.addElement(new UPCAReader());
+        readers.add(new UPCAReader());
       }
       if (possibleFormats.contains(BarcodeFormat.EAN_8)) {
-        readers.addElement(new EAN8Reader());
+        readers.add(new EAN8Reader());
       }
       if (possibleFormats.contains(BarcodeFormat.UPC_E)) {
-        readers.addElement(new UPCEReader());
+        readers.add(new UPCEReader());
       }
     }
     if (readers.isEmpty()) {
-      readers.addElement(new EAN13Reader());
+      readers.add(new EAN13Reader());
       // UPC-A is covered by EAN-13
-      readers.addElement(new EAN8Reader());
-      readers.addElement(new UPCEReader());
+      readers.add(new EAN8Reader());
+      readers.add(new UPCEReader());
     }
+    this.readers = readers.toArray(new UPCEANReader[readers.size()]);
   }
 
-  public Result decodeRow(int rowNumber, BitArray row, Hashtable hints) throws NotFoundException {
+  @Override
+  public Result decodeRow(int rowNumber,
+                          BitArray row,
+                          Map<DecodeHintType,?> hints) throws NotFoundException {
     // Compute this location once and reuse it on multiple implementations
     int[] startGuardPattern = UPCEANReader.findStartGuardPattern(row);
-    int size = readers.size();
-    for (int i = 0; i < size; i++) {
-      UPCEANReader reader = (UPCEANReader) readers.elementAt(i);
+    for (UPCEANReader reader : readers) {
       Result result;
       try {
         result = reader.decodeRow(rowNumber, row, startGuardPattern, hints);
-      } catch (ReaderException re) {
+      } catch (ReaderException ignored) {
         continue;
       }
       // Special case: a 12-digit code encoded in UPC-A is identical to a "0"
@@ -88,13 +92,21 @@ public final class MultiFormatUPCEANReader extends OneDReader {
       //
       // But, don't return UPC-A if UPC-A was not a requested format!
       boolean ean13MayBeUPCA =
-          BarcodeFormat.EAN_13.equals(result.getBarcodeFormat()) &&
-          result.getText().charAt(0) == '0';
-      Vector possibleFormats = hints == null ? null : (Vector) hints.get(DecodeHintType.POSSIBLE_FORMATS);
+          result.getBarcodeFormat() == BarcodeFormat.EAN_13 &&
+              result.getText().charAt(0) == '0';
+      @SuppressWarnings("unchecked")      
+      Collection<BarcodeFormat> possibleFormats =
+          hints == null ? null : (Collection<BarcodeFormat>) hints.get(DecodeHintType.POSSIBLE_FORMATS);
       boolean canReturnUPCA = possibleFormats == null || possibleFormats.contains(BarcodeFormat.UPC_A);
 
       if (ean13MayBeUPCA && canReturnUPCA) {
-        return new Result(result.getText().substring(1), null, result.getResultPoints(), BarcodeFormat.UPC_A);
+        // Transfer the metdata across
+        Result resultUPCA = new Result(result.getText().substring(1),
+                                       result.getRawBytes(),
+                                       result.getResultPoints(),
+                                       BarcodeFormat.UPC_A);
+        resultUPCA.putAllMetadata(result.getResultMetadata());
+        return resultUPCA;
       }
       return result;
     }
@@ -102,10 +114,9 @@ public final class MultiFormatUPCEANReader extends OneDReader {
     throw NotFoundException.getNotFoundInstance();
   }
 
+  @Override
   public void reset() {
-    int size = readers.size();
-    for (int i = 0; i < size; i++) {
-      Reader reader = (Reader) readers.elementAt(i);
+    for (Reader reader : readers) {
       reader.reset();
     }
   }

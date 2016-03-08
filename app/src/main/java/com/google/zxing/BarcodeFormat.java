@@ -16,88 +16,62 @@
 
 package com.google.zxing;
 
-import java.util.Hashtable;
-
 /**
- * Enumerates barcode formats known to this package.
+ * Enumerates barcode formats known to this package. Please keep alphabetized.
  *
  * @author Sean Owen
  */
-public final class BarcodeFormat {
+public enum BarcodeFormat {
 
-  // No, we can't use an enum here. J2ME doesn't support it.
-
-  private static final Hashtable VALUES = new Hashtable();
-
-  /** QR Code 2D barcode format. */
-  public static final BarcodeFormat QR_CODE = new BarcodeFormat("QR_CODE");
-
-  /** Data Matrix 2D barcode format. */
-  public static final BarcodeFormat DATA_MATRIX = new BarcodeFormat("DATA_MATRIX");
-
-  /** UPC-E 1D format. */
-  public static final BarcodeFormat UPC_E = new BarcodeFormat("UPC_E");
-
-  /** UPC-A 1D format. */
-  public static final BarcodeFormat UPC_A = new BarcodeFormat("UPC_A");
-
-  /** EAN-8 1D format. */
-  public static final BarcodeFormat EAN_8 = new BarcodeFormat("EAN_8");
-
-  /** EAN-13 1D format. */
-  public static final BarcodeFormat EAN_13 = new BarcodeFormat("EAN_13");
-
-  /** UPC/EAN extension format. Not a stand-alone format. */
-  public static final BarcodeFormat UPC_EAN_EXTENSION = new BarcodeFormat("UPC_EAN_EXTENSION");
-
-  /** Code 128 1D format. */
-  public static final BarcodeFormat CODE_128 = new BarcodeFormat("CODE_128");
-
-  /** Code 39 1D format. */
-  public static final BarcodeFormat CODE_39 = new BarcodeFormat("CODE_39");
-
-  /** Code 93 1D format. */
-  public static final BarcodeFormat CODE_93 = new BarcodeFormat("CODE_93");
+  /** Aztec 2D barcode format. */
+  AZTEC,
 
   /** CODABAR 1D format. */
-  public static final BarcodeFormat CODABAR = new BarcodeFormat("CODABAR");
+  CODABAR,
+
+  /** Code 39 1D format. */
+  CODE_39,
+
+  /** Code 93 1D format. */
+  CODE_93,
+
+  /** Code 128 1D format. */
+  CODE_128,
+
+  /** Data Matrix 2D barcode format. */
+  DATA_MATRIX,
+
+  /** EAN-8 1D format. */
+  EAN_8,
+
+  /** EAN-13 1D format. */
+  EAN_13,
 
   /** ITF (Interleaved Two of Five) 1D format. */
-  public static final BarcodeFormat ITF = new BarcodeFormat("ITF");
+  ITF,
 
-  /** RSS 14 */
-  public static final BarcodeFormat RSS14 = new BarcodeFormat("RSS14");
+  /** MaxiCode 2D barcode format. */
+  MAXICODE,
 
   /** PDF417 format. */
-  public static final BarcodeFormat PDF417 = new BarcodeFormat("PDF417");
+  PDF_417,
+
+  /** QR Code 2D barcode format. */
+  QR_CODE,
+
+  /** RSS 14 */
+  RSS_14,
 
   /** RSS EXPANDED */
-  public static final BarcodeFormat RSS_EXPANDED = new BarcodeFormat("RSS_EXPANDED");
+  RSS_EXPANDED,
 
-  private final String name;
+  /** UPC-A 1D format. */
+  UPC_A,
 
-  private BarcodeFormat(String name) {
-    this.name = name;
-    VALUES.put(name, this);
-  }
+  /** UPC-E 1D format. */
+  UPC_E,
 
-  public String getName() {
-    return name;
-  }
-
-  public String toString() {
-    return name;
-  }
-
-  public static BarcodeFormat valueOf(String name) {
-    if (name == null || name.length() == 0) {
-      throw new IllegalArgumentException();
-    }
-    BarcodeFormat format = (BarcodeFormat) VALUES.get(name);
-    if (format == null) {
-      throw new IllegalArgumentException();
-    }
-    return format;
-  }
+  /** UPC/EAN extension format. Not a stand-alone format. */
+  UPC_EAN_EXTENSION
 
 }

@@ -20,7 +20,7 @@ import com.google.zxing.ChecksumException;
 import com.google.zxing.FormatException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.DecoderResult;
-import com.google.zxing.common.reedsolomon.GF256;
+import com.google.zxing.common.reedsolomon.GenericGF;
 import com.google.zxing.common.reedsolomon.ReedSolomonDecoder;
 import com.google.zxing.common.reedsolomon.ReedSolomonException;
 
@@ -35,7 +35,7 @@ public final class Decoder {
   private final ReedSolomonDecoder rsDecoder;
 
   public Decoder() {
-    rsDecoder = new ReedSolomonDecoder(GF256.DATA_MATRIX_FIELD);
+    rsDecoder = new ReedSolomonDecoder(GenericGF.DATA_MATRIX_FIELD_256);
   }
 
   /**
@@ -73,29 +73,31 @@ public final class Decoder {
 
     // Construct a parser and read version, error-correction level
     BitMatrixParser parser = new BitMatrixParser(bits);
-    Version version = parser.readVersion(bits);
+    Version version = parser.getVersion();
 
     // Read codewords
     byte[] codewords = parser.readCodewords();
     // Separate into data blocks
     DataBlock[] dataBlocks = DataBlock.getDataBlocks(codewords, version);
 
+    int dataBlocksCount = dataBlocks.length;
+
     // Count total number of data bytes
     int totalBytes = 0;
-    for (int i = 0; i < dataBlocks.length; i++) {
-      totalBytes += dataBlocks[i].getNumDataCodewords();
+    for (DataBlock db : dataBlocks) {
+      totalBytes += db.getNumDataCodewords();
     }
     byte[] resultBytes = new byte[totalBytes];
-    int resultOffset = 0;
 
     // Error-correct and copy data blocks together into a stream of bytes
-    for (int j = 0; j < dataBlocks.length; j++) {
+    for (int j = 0; j < dataBlocksCount; j++) {
       DataBlock dataBlock = dataBlocks[j];
       byte[] codewordBytes = dataBlock.getCodewords();
       int numDataCodewords = dataBlock.getNumDataCodewords();
       correctErrors(codewordBytes, numDataCodewords);
       for (int i = 0; i < numDataCodewords; i++) {
-        resultBytes[resultOffset++] = codewordBytes[i];
+        // De-interlace data blocks.
+        resultBytes[i * dataBlocksCount + j] = codewordBytes[i];
       }
     }
 
@@ -121,7 +123,7 @@ public final class Decoder {
     int numECCodewords = codewordBytes.length - numDataCodewords;
     try {
       rsDecoder.decode(codewordsInts, numECCodewords);
-    } catch (ReedSolomonException rse) {
+    } catch (ReedSolomonException ignored) {
       throw ChecksumException.getChecksumInstance();
     }
     // Copy back into array of bytes -- only need to worry about the bytes that were data

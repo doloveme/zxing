@@ -22,41 +22,88 @@ package com.google.zxing.client.result;
 public final class AddressBookParsedResult extends ParsedResult {
 
   private final String[] names;
+  private final String[] nicknames;
   private final String pronunciation;
   private final String[] phoneNumbers;
+  private final String[] phoneTypes;
   private final String[] emails;
+  private final String[] emailTypes;
+  private final String instantMessenger;
   private final String note;
   private final String[] addresses;
+  private final String[] addressTypes;
   private final String org;
   private final String birthday;
   private final String title;
-  private final String url;
+  private final String[] urls;
+  private final String[] geo;
 
   public AddressBookParsedResult(String[] names,
+                                 String[] phoneNumbers,
+                                 String[] phoneTypes,
+                                 String[] emails,
+                                 String[] emailTypes,
+                                 String[] addresses,
+                                 String[] addressTypes) {
+    this(names,
+         null,
+         null,
+         phoneNumbers,
+         phoneTypes,
+         emails,
+         emailTypes,
+         null,
+         null,
+         addresses,
+         addressTypes,
+         null,
+         null,
+         null,
+         null,
+         null);
+  }
+
+  public AddressBookParsedResult(String[] names,
+                                 String[] nicknames,
                                  String pronunciation,
                                  String[] phoneNumbers,
+                                 String[] phoneTypes,
                                  String[] emails,
+                                 String[] emailTypes,
+                                 String instantMessenger,
                                  String note,
                                  String[] addresses,
+                                 String[] addressTypes,
                                  String org,
                                  String birthday,
                                  String title,
-                                 String url) {
+                                 String[] urls,
+                                 String[] geo) {
     super(ParsedResultType.ADDRESSBOOK);
     this.names = names;
+    this.nicknames = nicknames;
     this.pronunciation = pronunciation;
     this.phoneNumbers = phoneNumbers;
+    this.phoneTypes = phoneTypes;
     this.emails = emails;
+    this.emailTypes = emailTypes;
+    this.instantMessenger = instantMessenger;
     this.note = note;
     this.addresses = addresses;
+    this.addressTypes = addressTypes;
     this.org = org;
     this.birthday = birthday;
     this.title = title;
-    this.url = url;
+    this.urls = urls;
+    this.geo = geo;
   }
 
   public String[] getNames() {
     return names;
+  }
+
+  public String[] getNicknames() {
+    return nicknames;
   }
 
   /**
@@ -73,8 +120,28 @@ public final class AddressBookParsedResult extends ParsedResult {
     return phoneNumbers;
   }
 
+  /**
+   * @return optional descriptions of the type of each phone number. It could be like "HOME", but,
+   *  there is no guaranteed or standard format.
+   */
+  public String[] getPhoneTypes() {
+    return phoneTypes;
+  }
+
   public String[] getEmails() {
     return emails;
+  }
+
+  /**
+   * @return optional descriptions of the type of each e-mail. It could be like "WORK", but,
+   *  there is no guaranteed or standard format.
+   */
+  public String[] getEmailTypes() {
+    return emailTypes;
+  }
+  
+  public String getInstantMessenger() {
+    return instantMessenger;
   }
 
   public String getNote() {
@@ -85,6 +152,14 @@ public final class AddressBookParsedResult extends ParsedResult {
     return addresses;
   }
 
+  /**
+   * @return optional descriptions of the type of each e-mail. It could be like "WORK", but,
+   *  there is no guaranteed or standard format.
+   */
+  public String[] getAddressTypes() {
+    return addressTypes;
+  }
+
   public String getTitle() {
     return title;
   }
@@ -93,8 +168,8 @@ public final class AddressBookParsedResult extends ParsedResult {
     return org;
   }
 
-  public String getURL() {
-    return url;
+  public String[] getURLs() {
+    return urls;
   }
 
   /**
@@ -104,17 +179,28 @@ public final class AddressBookParsedResult extends ParsedResult {
     return birthday;
   }
 
+  /**
+   * @return a location as a latitude/longitude pair
+   */
+  public String[] getGeo() {
+    return geo;
+  }
+
+  @Override
   public String getDisplayResult() {
-    StringBuffer result = new StringBuffer(100);
+    StringBuilder result = new StringBuilder(100);
     maybeAppend(names, result);
+    maybeAppend(nicknames, result);
     maybeAppend(pronunciation, result);
     maybeAppend(title, result);
     maybeAppend(org, result);
     maybeAppend(addresses, result);
     maybeAppend(phoneNumbers, result);
     maybeAppend(emails, result);
-    maybeAppend(url, result);
+    maybeAppend(instantMessenger, result);
+    maybeAppend(urls, result);
     maybeAppend(birthday, result);
+    maybeAppend(geo, result);
     maybeAppend(note, result);
     return result.toString();
   }

@@ -17,15 +17,15 @@
 package com.google.zxing.qrcode.decoder;
 
 import com.google.zxing.ChecksumException;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.FormatException;
-import com.google.zxing.NotFoundException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.DecoderResult;
-import com.google.zxing.common.reedsolomon.GF256;
+import com.google.zxing.common.reedsolomon.GenericGF;
 import com.google.zxing.common.reedsolomon.ReedSolomonDecoder;
 import com.google.zxing.common.reedsolomon.ReedSolomonException;
 
-import java.util.Hashtable;
+import java.util.Map;
 
 /**
  * <p>The main class which implements QR Code decoding -- as opposed to locating and extracting
@@ -38,11 +38,10 @@ public final class Decoder {
   private final ReedSolomonDecoder rsDecoder;
 
   public Decoder() {
-    rsDecoder = new ReedSolomonDecoder(GF256.QR_CODE_FIELD);
+    rsDecoder = new ReedSolomonDecoder(GenericGF.QR_CODE_FIELD_256);
   }
 
-  public DecoderResult decode(boolean[][] image)
-      throws ChecksumException, FormatException, NotFoundException {
+  public DecoderResult decode(boolean[][] image) throws ChecksumException, FormatException {
     return decode(image, null);
   }
 
@@ -52,12 +51,11 @@ public final class Decoder {
    *
    * @param image booleans representing white/black QR Code modules
    * @return text and bytes encoded within the QR Code
-   * @throws NotFoundException if the QR Code cannot be found
    * @throws FormatException if the QR Code cannot be decoded
    * @throws ChecksumException if error correction fails
    */
-  public DecoderResult decode(boolean[][] image, Hashtable hints)
-      throws ChecksumException, FormatException, NotFoundException {
+  public DecoderResult decode(boolean[][] image, Map<DecodeHintType,?> hints)
+      throws ChecksumException, FormatException {
     int dimension = image.length;
     BitMatrix bits = new BitMatrix(dimension);
     for (int i = 0; i < dimension; i++) {
@@ -70,7 +68,7 @@ public final class Decoder {
     return decode(bits, hints);
   }
 
-  public DecoderResult decode(BitMatrix bits) throws ChecksumException, FormatException, NotFoundException {
+  public DecoderResult decode(BitMatrix bits) throws ChecksumException, FormatException {
     return decode(bits, null);
   }
 
@@ -82,10 +80,66 @@ public final class Decoder {
    * @throws FormatException if the QR Code cannot be decoded
    * @throws ChecksumException if error correction fails
    */
-  public DecoderResult decode(BitMatrix bits, Hashtable hints) throws FormatException, ChecksumException {
+  public DecoderResult decode(BitMatrix bits, Map<DecodeHintType,?> hints)
+      throws FormatException, ChecksumException {
 
     // Construct a parser and read version, error-correction level
     BitMatrixParser parser = new BitMatrixParser(bits);
+    FormatException fe = null;
+    ChecksumException ce = null;
+    try {
+      return decode(parser, hints);
+    } catch (FormatException e) {
+      fe = e;
+    } catch (ChecksumException e) {
+      ce = e;
+    }
+
+    try {
+
+      // Revert the bit matrix
+      parser.remask();
+
+      // Will be attempting a mirrored reading of the version and format info.
+      parser.setMirror(true);
+
+      // Preemptively read the version.
+      parser.readVersion();
+
+      // Preemptively read the format information.
+      parser.readFormatInformation();
+
+      /*
+       * Since we're here, this means we have successfully detected some kind
+       * of version and format information when mirrored. This is a good sign,
+       * that the QR code may be mirrored, and we should try once more with a
+       * mirrored content.
+       */
+      // Prepare for a mirrored reading.
+      parser.mirror();
+
+      DecoderResult result = decode(parser, hints);
+
+      // Success! Notify the caller that the code was mirrored.
+      result.setOther(new QRCodeDecoderMetaData(true));
+
+      return result;
+
+    } catch (FormatException | ChecksumException e) {
+      // Throw the exception from the original reading
+      if (fe != null) {
+        throw fe;
+      }
+      if (ce != null) {
+        throw ce;
+      }
+      throw e;
+
+    }
+  }
+
+  private DecoderResult decode(BitMatrixParser parser, Map<DecodeHintType,?> hints)
+      throws FormatException, ChecksumException {
     Version version = parser.readVersion();
     ErrorCorrectionLevel ecLevel = parser.readFormatInformation().getErrorCorrectionLevel();
 
@@ -96,15 +150,14 @@ public final class Decoder {
 
     // Count total number of data bytes
     int totalBytes = 0;
-    for (int i = 0; i < dataBlocks.length; i++) {
-      totalBytes += dataBlocks[i].getNumDataCodewords();
+    for (DataBlock dataBlock : dataBlocks) {
+      totalBytes += dataBlock.getNumDataCodewords();
     }
     byte[] resultBytes = new byte[totalBytes];
     int resultOffset = 0;
 
     // Error-correct and copy data blocks together into a stream of bytes
-    for (int j = 0; j < dataBlocks.length; j++) {
-      DataBlock dataBlock = dataBlocks[j];
+    for (DataBlock dataBlock : dataBlocks) {
       byte[] codewordBytes = dataBlock.getCodewords();
       int numDataCodewords = dataBlock.getNumDataCodewords();
       correctErrors(codewordBytes, numDataCodewords);
@@ -135,7 +188,7 @@ public final class Decoder {
     int numECCodewords = codewordBytes.length - numDataCodewords;
     try {
       rsDecoder.decode(codewordsInts, numECCodewords);
-    } catch (ReedSolomonException rse) {
+    } catch (ReedSolomonException ignored) {
       throw ChecksumException.getChecksumInstance();
     }
     // Copy back into array of bytes -- only need to worry about the bytes that were data
